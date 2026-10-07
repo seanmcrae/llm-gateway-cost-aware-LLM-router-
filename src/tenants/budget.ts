@@ -41,13 +41,16 @@ export class BudgetLedger {
     const ledger = this.ledger(tenantId);
     const reservedUsd = [...ledger.reserved.values()].reduce((a, b) => a + b, 0);
     const remainingUsd = Math.max(0, budgetUsd - ledger.spentUsd - reservedUsd);
+    // Rounded to a hundredth of a micro-dollar so reports do not show float noise.
+    const usd = (x: number) => Number(x.toFixed(8));
     return {
       month: ledger.month,
       budgetUsd,
-      spentUsd: ledger.spentUsd,
-      reservedUsd,
-      remainingUsd,
-      spentFraction: budgetUsd > 0 ? Math.min(1, ledger.spentUsd / budgetUsd) : 1,
+      spentUsd: usd(ledger.spentUsd),
+      reservedUsd: usd(reservedUsd),
+      remainingUsd: usd(remainingUsd),
+      spentFraction:
+        budgetUsd > 0 ? Number(Math.min(1, ledger.spentUsd / budgetUsd).toFixed(6)) : 1,
     };
   }
 

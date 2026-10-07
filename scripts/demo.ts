@@ -3,6 +3,7 @@
  * Requests go through the real HTTP app in-process, with a virtual clock so simulated
  * latencies and backoff waits cost no wall time and the output is identical on every run.
  */
+import { pathToFileURL } from "node:url";
 import { loadConfig } from "../src/config/load.js";
 import type { GatewayConfig } from "../src/config/schema.js";
 import { ManualClock, VirtualSleeper } from "../src/core/clock.js";
@@ -29,7 +30,8 @@ function start(edit: (config: GatewayConfig) => void = () => undefined) {
 }
 
 type App = ReturnType<typeof start>;
-const out = (line = "") => process.stdout.write(`${line}\n`);
+const lines: string[] = [];
+const out = (line = "") => lines.push(line);
 
 async function send(
   app: App,
@@ -77,50 +79,59 @@ const HARD = [
 const MEDIUM =
   "Write a TypeScript function that groups an array of orders by customer id and returns the total per customer.";
 
-out("Routing by complexity (tenant acme, model=auto)");
-out();
-const app = start();
-await send(app, "Easy: sentiment classification", EASY);
-await send(app, "Medium: small coding task", MEDIUM);
-await send(app, "Hard: multi-constraint design question", HARD);
-await send(app, "Same easy request again (temperature 0)", EASY);
+/** Runs every scenario and returns the transcript shown in the README. */
+export async function runDemo(): Promise<string> {
+  lines.length = 0;
+  out("Routing by complexity (tenant acme, model=auto)");
+  out();
+  const app = start();
+  await send(app, "Easy: sentiment classification", EASY);
+  await send(app, "Medium: small coding task", MEDIUM);
+  await send(app, "Hard: multi-constraint design question", HARD);
+  await send(app, "Same easy request again (temperature 0)", EASY);
 
-out("Per-request controls");
-out();
-await send(app, "Hard question with x-llm-gateway-max-cost-usd: 0.004", HARD, {
-  headers: { "x-llm-gateway-max-cost-usd": "0.004", "x-llm-gateway-cache": "off" },
-});
-await send(app, "Hard question for tenant globex (latency SLO 5000 ms)", HARD, {
-  key: "sk-local-globex-demo",
-});
-await send(app, "Pinned model, bypassing the router", EASY, {
-  model: "mock-large-alt",
-  headers: { "x-llm-gateway-cache": "off" },
-});
+  out("Per-request controls");
+  out();
+  await send(app, "Hard question with x-llm-gateway-max-cost-usd: 0.004", HARD, {
+    headers: { "x-llm-gateway-max-cost-usd": "0.004", "x-llm-gateway-cache": "off" },
+  });
+  await send(app, "Hard question for tenant globex (latency SLO 5000 ms)", HARD, {
+    key: "sk-local-globex-demo",
+  });
+  await send(app, "Pinned model, bypassing the router", EASY, {
+    model: "mock-large-alt",
+    headers: { "x-llm-gateway-cache": "off" },
+  });
 
-out("Failure handling: mock-large forced to fail every call");
-out();
-const failing = start((config) => {
-  const large = config.models.find((m) => m.id === "mock-large");
-  if (large?.mock) large.mock.failureRate = 1;
-});
-for (let i = 1; i <= 3; i++) {
-  await send(failing, `Hard question #${i}`, `${HARD} (variant ${i})`);
+  out("Failure handling: mock-large forced to fail every call");
+  out();
+  const failing = start((config) => {
+    const large = config.models.find((m) => m.id === "mock-large");
+    if (large?.mock) large.mock.failureRate = 1;
+  });
+  for (let i = 1; i <= 3; i++) {
+    await send(failing, `Hard question #${i}`, `${HARD} (variant ${i})`);
+  }
+
+  const usage = await app.request("/v1/usage", {
+    headers: { authorization: "Bearer sk-local-acme-demo" },
+  });
+  out("GET /v1/usage (acme)");
+  out(`  ${JSON.stringify(await usage.json())}`);
+  out();
+  const metrics = await (await failing.request("/metrics")).text();
+  out("GET /metrics (excerpt, failing gateway)");
+  for (const line of metrics.split("\n")) {
+    if (
+      line.startsWith("llm_gateway_upstream_attempts_total") ||
+      line.startsWith("llm_gateway_breaker_state")
+    ) {
+      out(`  ${line}`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
 }
 
-const usage = await app.request("/v1/usage", {
-  headers: { authorization: "Bearer sk-local-acme-demo" },
-});
-out("GET /v1/usage (acme)");
-out(`  ${JSON.stringify(await usage.json())}`);
-out();
-const metrics = await (await failing.request("/metrics")).text();
-out("GET /metrics (excerpt, failing gateway)");
-for (const line of metrics.split("\n")) {
-  if (
-    line.startsWith("llm_gateway_upstream_attempts_total") ||
-    line.startsWith("llm_gateway_breaker_state")
-  ) {
-    out(`  ${line}`);
-  }
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  process.stdout.write(await runDemo());
 }

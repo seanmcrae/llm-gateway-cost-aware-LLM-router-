@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" width="760" height="470" role="img" aria-label="Quality proxy versus cost per 1,000 requests for each routing policy" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+<rect width="760" height="470" fill="#ffffff"/>
+<text x="24" y="32" font-size="18" font-weight="600" fill="#111827">Quality vs cost: fixed tiers and routed policies</text>
+<text x="24" y="54" font-size="13" fill="#4b5563">npm run bench: 300 prompts, synthetic test split, mock providers. Labels: quality, cost per 1k, p95 latency.</text>
+<line x1="64" y1="378" x2="736" y2="378" stroke="#e5e7eb"/>
+<text x="56" y="382" font-size="11" fill="#6b7280" text-anchor="end">50%</text>
+<line x1="64" y1="317.2" x2="736" y2="317.2" stroke="#e5e7eb"/>
+<text x="56" y="321.2" font-size="11" fill="#6b7280" text-anchor="end">60%</text>
+<line x1="64" y1="256.4" x2="736" y2="256.4" stroke="#e5e7eb"/>
+<text x="56" y="260.4" font-size="11" fill="#6b7280" text-anchor="end">70%</text>
+<line x1="64" y1="195.6" x2="736" y2="195.6" stroke="#e5e7eb"/>
+<text x="56" y="199.6" font-size="11" fill="#6b7280" text-anchor="end">80%</text>
+<line x1="64" y1="134.8" x2="736" y2="134.8" stroke="#e5e7eb"/>
+<text x="56" y="138.8" font-size="11" fill="#6b7280" text-anchor="end">90%</text>
+<line x1="64" y1="74" x2="736" y2="74" stroke="#e5e7eb"/>
+<text x="56" y="78" font-size="11" fill="#6b7280" text-anchor="end">100%</text>
+<line x1="64" y1="74" x2="64" y2="378" stroke="#f1f5f9"/>
+<text x="64" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.00</text>
+<line x1="148" y1="74" x2="148" y2="378" stroke="#f1f5f9"/>
+<text x="148" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.20</text>
+<line x1="232" y1="74" x2="232" y2="378" stroke="#f1f5f9"/>
+<text x="232" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.40</text>
+<line x1="316" y1="74" x2="316" y2="378" stroke="#f1f5f9"/>
+<text x="316" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.60</text>
+<line x1="400" y1="74" x2="400" y2="378" stroke="#f1f5f9"/>
+<text x="400" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.80</text>
+<line x1="484" y1="74" x2="484" y2="378" stroke="#f1f5f9"/>
+<text x="484" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.00</text>
+<line x1="568" y1="74" x2="568" y2="378" stroke="#f1f5f9"/>
+<text x="568" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.20</text>
+<line x1="652" y1="74" x2="652" y2="378" stroke="#f1f5f9"/>
+<text x="652" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.40</text>
+<line x1="736" y1="74" x2="736" y2="378" stroke="#f1f5f9"/>
+<text x="736" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.60</text>
+<text x="400" y="418" font-size="12" fill="#374151" text-anchor="middle">Cost per 1,000 requests (USD, illustrative prices)</text>
+<text x="16" y="226" font-size="12" fill="#374151" text-anchor="middle" transform="rotate(-90 16 226)">Quality proxy</text>
+<path d="M106.8,282.5 L140.9,240 L202.6,193.8 L206.8,183.4 L249.6,159.1 L271.1,145.1 L298.8,118.4" fill="none" stroke="#93c5fd" stroke-width="2"/>
+<circle cx="106.8" cy="282.5" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.6/0.9: 65.7% at $0.10 per 1k, p95 1.7 s</title></circle>
+<circle cx="140.9" cy="240" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.5/0.75: 72.7% at $0.18 per 1k, p95 2.2 s</title></circle>
+<circle cx="202.6" cy="193.8" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.4/0.65: 80.3% at $0.33 per 1k, p95 3.4 s</title></circle>
+<circle cx="206.8" cy="183.4" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.3/0.55: 82% at $0.34 per 1k, p95 3.4 s</title></circle>
+<circle cx="249.6" cy="159.1" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.25/0.5: 86% at $0.44 per 1k, p95 3.5 s</title></circle>
+<circle cx="271.1" cy="145.1" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.2/0.4: 88.3% at $0.49 per 1k, p95 3.5 s</title></circle>
+<circle cx="298.8" cy="118.4" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.1/0.3: 92.7% at $0.56 per 1k, p95 3.6 s</title></circle>
+<rect x="80.7" y="299" width="12" height="12" fill="#374151"><title>always-cheap: 62% at $0.05 per 1k, p50 0.5 s, p95 1.0 s</title></rect>
+<text x="98.7" y="305" font-size="12" fill="#111827" text-anchor="start">always-cheap</text>
+<text x="98.7" y="319" font-size="11" fill="#6b7280" text-anchor="start">62.0%, $0.05, p95 1.0 s</text>
+<rect x="179.8" y="189.6" width="12" height="12" fill="#374151"><title>always-standard: 80% at $0.29 per 1k, p50 1.0 s, p95 2.0 s</title></rect>
+<line x1="185.8" y1="195.6" x2="173.8" y2="171.6" stroke="#9ca3af" stroke-width="1"/>
+<text x="169.8" y="169.6" font-size="12" fill="#111827" text-anchor="end">always-standard</text>
+<text x="169.8" y="183.6" font-size="11" fill="#6b7280" text-anchor="end">80.0%, $0.29, p95 2.0 s</text>
+<rect x="586.8" y="78.3" width="12" height="12" fill="#374151"><title>always-premium: 98.3% at $1.26 per 1k, p50 1.9 s, p95 4.1 s</title></rect>
+<text x="580.8" y="84.3" font-size="12" fill="#111827" text-anchor="end">always-premium</text>
+<text x="580.8" y="98.3" font-size="11" fill="#6b7280" text-anchor="end">98.3%, $1.26, p95 4.1 s</text>
+<circle cx="249.6" cy="159.1" r="7.5" fill="#1d4ed8" stroke="#fff" stroke-width="2"><title>routed: 86% at $0.44 per 1k, p50 0.7 s, p95 3.5 s</title></circle>
+<line x1="249.6" y1="159.1" x2="315.6" y2="195.1" stroke="#9ca3af" stroke-width="1"/>
+<text x="319.6" y="193.1" font-size="12" fill="#111827" text-anchor="start">routed</text>
+<text x="319.6" y="207.1" font-size="11" fill="#6b7280" text-anchor="start">86.0%, $0.44, p95 3.5 s</text>
+<path d="M208.9,151.1 L216.9,159.1 L208.9,167.1 L200.9,159.1 Z" fill="#0f766e"><title>routed + exact cache: 86% at $0.34 per 1k, p50 0.4 s, p95 3.4 s</title></path>
+<line x1="208.9" y1="159.1" x2="172.9" y2="121.1" stroke="#9ca3af" stroke-width="1"/>
+<text x="168.9" y="119.1" font-size="12" fill="#111827" text-anchor="end">routed + exact cache</text>
+<text x="168.9" y="133.1" font-size="11" fill="#6b7280" text-anchor="end">86.0%, $0.34, p95 3.4 s</text>
+<path d="M168.6,213.7 L176.6,221.7 L168.6,229.7 L160.6,221.7 Z" fill="#c2410c"><title>routed + semantic cache: 75.7% at $0.25 per 1k, p50 0.3 s, p95 3.1 s</title></path>
+<line x1="168.6" y1="221.7" x2="180.6" y2="249.7" stroke="#9ca3af" stroke-width="1"/>
+<text x="184.6" y="247.7" font-size="12" fill="#111827" text-anchor="start">routed + semantic cache</text>
+<text x="184.6" y="261.7" font-size="11" fill="#6b7280" text-anchor="start">75.7%, $0.25, p95 3.1 s</text>
+<rect x="64" y="440" width="12" height="12" fill="#374151"><title>Fixed tier</title></rect>
+<text x="82" y="450" font-size="11" fill="#374151">Fixed tier</text>
+<circle cx="164" cy="446" r="7.5" fill="#1d4ed8" stroke="#fff" stroke-width="2"><title>Routed (default)</title></circle>
+<text x="176" y="450" font-size="11" fill="#374151">Routed (default)</text>
+<circle cx="294" cy="446" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>Threshold sweep</title></circle>
+<text x="306" y="450" font-size="11" fill="#374151">Threshold sweep</text>
+<path d="M418,438 L426,446 L418,454 L410,446 Z" fill="#0f766e"><title>Routed + exact cache</title></path>
+<text x="430" y="450" font-size="11" fill="#374151">Routed + exact cache</text>
+<path d="M572,438 L580,446 L572,454 L564,446 Z" fill="#c2410c"><title>Routed + semantic cache</title></path>
+<text x="584" y="450" font-size="11" fill="#374151">Routed + semantic cache</text>
+</svg>
