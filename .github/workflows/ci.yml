@@ -26,3 +26,4 @@ jobs:
       - run: npm run bench
       - name: Benchmark results match the committed file
         run: git diff --exit-code bench/results.json
+      - run: npm run site

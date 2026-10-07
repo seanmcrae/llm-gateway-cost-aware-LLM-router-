@@ -265,7 +265,12 @@ function edgeGeometry(
           ];
     const start = points[0] ?? { x: 0, y: 0 };
     const end = points[points.length - 1] ?? start;
-    const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+    // Long edges are labelled at their first waypoint, next to the node they leave, so the
+    // label cannot be mistaken for one on a shorter edge that ends in the same area.
+    const firstVia = via[0];
+    const mid = firstVia
+      ? { x: firstVia.x + firstVia.w / 2, y: firstVia.y + firstVia.h / 2 }
+      : { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
     const extent = { x: Math.max(...points.map((p) => p.x)), y: Math.max(...points.map((p) => p.y)) };
     return {
       d: smoothPath(points, direction),

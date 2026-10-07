@@ -3,6 +3,7 @@ node_modules/
 /coverage/
 /data/
 /out/
+/site/
 .cache/
 .eslintcache
 *.tsbuildinfo
