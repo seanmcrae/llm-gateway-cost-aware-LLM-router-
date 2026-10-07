@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "llm-gateway"
+abstract: "A cost-aware, OpenAI-compatible LLM gateway that routes requests across model tiers by complexity, budget, cost cap and latency SLO, with fallbacks, retries, circuit breakers, caching, per-tenant budgets and rate limits, and a synthetic replay benchmark."
+type: software
+authors:
+  - family-names: McRae
+    given-names: Sean
+version: 0.1.0
+date-released: 2026-10-07
+license: MIT
+repository-code: "https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-"
+url: "https://seanmcrae.github.io/llm-gateway-cost-aware-LLM-router-/"
+keywords:
+  - llm
+  - gateway
+  - model routing
+  - cost optimization
+  - reliability
