@@ -118,7 +118,7 @@ export class MockProvider implements Provider {
     }
     await this.sleeper.sleep(latency);
     return {
-      content: fillerText(completionTokens, fingerprint),
+      content: `[simulated ${request.model}] ${fillerText(completionTokens, fingerprint)}`,
       finishReason: completionTokens < wanted ? "length" : "stop",
       usage: { promptTokens, completionTokens },
     };

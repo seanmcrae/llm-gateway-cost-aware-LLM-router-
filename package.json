@@ -23,7 +23,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm test"
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test",
+    "demo": "tsx scripts/demo.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

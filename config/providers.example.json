@@ -1,0 +1,73 @@
+{
+  "$comment": "Example config for real providers. Set OPENAI_API_KEY and ANTHROPIC_API_KEY, then run: llm-gateway serve --config config/providers.example.json. Prices are per million tokens as listed by the vendors at the time of writing; check current pricing before relying on cost numbers. Replace the tenant keys with long random values. Any OpenAI-compatible server (vLLM, Ollama, Azure OpenAI) works as provider \"openai\" with a baseUrl and its own apiKeyEnv.",
+  "models": [
+    {
+      "id": "gpt-4o-mini",
+      "provider": "openai",
+      "tier": "cheap",
+      "pricing": {
+        "inputPerMTok": 0.15,
+        "outputPerMTok": 0.6
+      },
+      "contextWindow": 128000,
+      "latencyPriorMs": 4000
+    },
+    {
+      "id": "claude-haiku",
+      "provider": "anthropic",
+      "upstreamModel": "claude-3-5-haiku-latest",
+      "tier": "standard",
+      "pricing": {
+        "inputPerMTok": 0.8,
+        "outputPerMTok": 4
+      },
+      "contextWindow": 200000,
+      "latencyPriorMs": 6000
+    },
+    {
+      "id": "gpt-4o",
+      "provider": "openai",
+      "tier": "premium",
+      "pricing": {
+        "inputPerMTok": 2.5,
+        "outputPerMTok": 10
+      },
+      "contextWindow": 128000,
+      "latencyPriorMs": 12000
+    }
+  ],
+  "routing": {
+    "tiers": ["cheap", "standard", "premium"],
+    "thresholds": [0.3, 0.55]
+  },
+  "resilience": {
+    "timeoutMs": 60000,
+    "maxRetries": 2,
+    "backoff": {
+      "baseMs": 500,
+      "maxMs": 8000
+    },
+    "breaker": {
+      "consecutiveFailures": 5,
+      "failureRate": 0.5,
+      "windowSize": 20,
+      "minCalls": 10,
+      "cooldownMs": 30000
+    }
+  },
+  "cache": {
+    "mode": "exact"
+  },
+  "tenants": [
+    {
+      "id": "default",
+      "apiKeys": ["replace-with-a-long-random-key"],
+      "monthlyBudgetUsd": 20,
+      "requestsPerMinute": 120,
+      "tokensPerMinute": 400000
+    }
+  ],
+  "telemetry": {
+    "jsonlPath": "out/events.jsonl"
+  }
+}

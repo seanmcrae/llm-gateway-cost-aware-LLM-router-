@@ -1,0 +1,117 @@
+{
+  "$comment": "Default config: four simulated models, no API keys needed. Prices and latencies are illustrative, shaped like typical small/mid/large model tiers; they are not quotes for any real API.",
+  "models": [
+    {
+      "id": "mock-small",
+      "provider": "mock",
+      "tier": "cheap",
+      "pricing": { "inputPerMTok": 0.15, "outputPerMTok": 0.6 },
+      "contextWindow": 128000,
+      "latencyPriorMs": 2500,
+      "mock": {
+        "ttftMs": 200,
+        "msPerOutputToken": 6,
+        "jitter": 0.2,
+        "slowRate": 0.03,
+        "slowMultiplier": 3,
+        "failureRate": 0.005,
+        "capability": 2.3
+      }
+    },
+    {
+      "id": "mock-medium",
+      "provider": "mock",
+      "tier": "standard",
+      "pricing": { "inputPerMTok": 0.8, "outputPerMTok": 3.2 },
+      "contextWindow": 128000,
+      "latencyPriorMs": 4500,
+      "mock": {
+        "ttftMs": 350,
+        "msPerOutputToken": 12,
+        "jitter": 0.2,
+        "slowRate": 0.03,
+        "slowMultiplier": 3,
+        "failureRate": 0.01,
+        "capability": 3.4
+      }
+    },
+    {
+      "id": "mock-large",
+      "provider": "mock",
+      "tier": "premium",
+      "pricing": { "inputPerMTok": 3, "outputPerMTok": 15 },
+      "contextWindow": 200000,
+      "latencyPriorMs": 9000,
+      "mock": {
+        "ttftMs": 600,
+        "msPerOutputToken": 24,
+        "jitter": 0.2,
+        "slowRate": 0.04,
+        "slowMultiplier": 3,
+        "failureRate": 0.03,
+        "capability": 4.6
+      }
+    },
+    {
+      "id": "mock-large-alt",
+      "provider": "mock",
+      "tier": "premium",
+      "pricing": { "inputPerMTok": 3, "outputPerMTok": 15 },
+      "contextWindow": 200000,
+      "latencyPriorMs": 9000,
+      "mock": {
+        "ttftMs": 700,
+        "msPerOutputToken": 22,
+        "jitter": 0.2,
+        "slowRate": 0.04,
+        "slowMultiplier": 3,
+        "failureRate": 0.01,
+        "capability": 4.5
+      }
+    }
+  ],
+  "routing": {
+    "tiers": ["cheap", "standard", "premium"],
+    "thresholds": [0.3, 0.55],
+    "defaultPolicy": "routed",
+    "budgetDowngradeAt": 0.8,
+    "maxModelsPerRequest": 3,
+    "latencyMinSamples": 20
+  },
+  "resilience": {
+    "timeoutMs": 15000,
+    "maxRetries": 2,
+    "backoff": { "baseMs": 200, "maxMs": 2000 },
+    "breaker": {
+      "consecutiveFailures": 5,
+      "failureRate": 0.5,
+      "windowSize": 20,
+      "minCalls": 10,
+      "cooldownMs": 30000
+    }
+  },
+  "cache": {
+    "mode": "exact",
+    "ttlMs": 3600000,
+    "maxEntries": 5000,
+    "similarityThreshold": 0.95
+  },
+  "defaults": { "maxOutputTokens": 512 },
+  "tenants": [
+    {
+      "id": "acme",
+      "apiKeys": ["sk-local-acme-demo"],
+      "monthlyBudgetUsd": 50,
+      "requestsPerMinute": 600,
+      "tokensPerMinute": 2000000
+    },
+    {
+      "id": "globex",
+      "apiKeys": ["sk-local-globex-demo"],
+      "monthlyBudgetUsd": 5,
+      "requestsPerMinute": 60,
+      "tokensPerMinute": 200000,
+      "latencySloMs": 5000
+    }
+  ]
+}
