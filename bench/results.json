@@ -116,7 +116,10 @@
       "variant": "routed",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.25, 0.5],
+      "thresholds": [
+        0.25,
+        0.5
+      ],
       "requests": 300,
       "quality": 86,
       "costPer1kUsd": 0.442,
@@ -152,7 +155,10 @@
       "variant": "routed + exact cache",
       "model": "auto",
       "cache": "exact",
-      "thresholds": [0.25, 0.5],
+      "thresholds": [
+        0.25,
+        0.5
+      ],
       "requests": 300,
       "quality": 86,
       "costPer1kUsd": 0.345,
@@ -188,7 +194,10 @@
       "variant": "routed + semantic cache",
       "model": "auto",
       "cache": "semantic",
-      "thresholds": [0.25, 0.5],
+      "thresholds": [
+        0.25,
+        0.5
+      ],
       "requests": 300,
       "quality": 75.7,
       "costPer1kUsd": 0.249,
@@ -226,7 +235,10 @@
       "variant": "routed 0.1/0.3",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.1, 0.3],
+      "thresholds": [
+        0.1,
+        0.3
+      ],
       "requests": 300,
       "quality": 92.7,
       "costPer1kUsd": 0.559,
@@ -262,7 +274,10 @@
       "variant": "routed 0.2/0.4",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.2, 0.4],
+      "thresholds": [
+        0.2,
+        0.4
+      ],
       "requests": 300,
       "quality": 88.3,
       "costPer1kUsd": 0.493,
@@ -298,7 +313,10 @@
       "variant": "routed 0.25/0.5",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.25, 0.5],
+      "thresholds": [
+        0.25,
+        0.5
+      ],
       "requests": 300,
       "quality": 86,
       "costPer1kUsd": 0.442,
@@ -334,7 +352,10 @@
       "variant": "routed 0.3/0.55",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.3, 0.55],
+      "thresholds": [
+        0.3,
+        0.55
+      ],
       "requests": 300,
       "quality": 82,
       "costPer1kUsd": 0.34,
@@ -370,7 +391,10 @@
       "variant": "routed 0.4/0.65",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.4, 0.65],
+      "thresholds": [
+        0.4,
+        0.65
+      ],
       "requests": 300,
       "quality": 80.3,
       "costPer1kUsd": 0.33,
@@ -406,7 +430,10 @@
       "variant": "routed 0.5/0.75",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.5, 0.75],
+      "thresholds": [
+        0.5,
+        0.75
+      ],
       "requests": 300,
       "quality": 72.7,
       "costPer1kUsd": 0.183,
@@ -442,7 +469,10 @@
       "variant": "routed 0.6/0.9",
       "model": "auto",
       "cache": "off",
-      "thresholds": [0.6, 0.9],
+      "thresholds": [
+        0.6,
+        0.9
+      ],
       "requests": 300,
       "quality": 65.7,
       "costPer1kUsd": 0.102,

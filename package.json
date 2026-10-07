@@ -1,19 +1,48 @@
 {
   "name": "llm-gateway",
   "version": "0.1.0",
-  "private": true,
   "description": "Cost-aware, OpenAI-compatible LLM gateway: policy routing across model tiers, fallback chains, retries, circuit breakers, response caching, per-tenant budgets and rate limits, and cost/latency telemetry.",
   "license": "MIT",
   "author": "Sean McRae",
+  "homepage": "https://seanmcrae.github.io/llm-gateway-cost-aware-LLM-router-/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-.git"
+  },
+  "bugs": {
+    "url": "https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/issues"
+  },
+  "keywords": [
+    "llm",
+    "gateway",
+    "router",
+    "openai-compatible",
+    "anthropic",
+    "cost-optimization",
+    "circuit-breaker",
+    "rate-limiting",
+    "semantic-cache",
+    "observability"
+  ],
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "bin": {
     "llm-gateway": "dist/bin/server.js"
   },
+  "files": [
+    "dist",
+    "config"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/bin/server.js",
@@ -23,10 +52,10 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm test",
     "demo": "tsx scripts/demo.ts",
+    "bench": "tsx bench/run.ts",
     "bench:generate": "tsx bench/generate.ts",
-    "bench": "tsx bench/run.ts"
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

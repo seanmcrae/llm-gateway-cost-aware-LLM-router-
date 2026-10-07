@@ -1,3 +1,6 @@
 dist/
 coverage/
+out/
+site/
 package-lock.json
+bench/results.json
