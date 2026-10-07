@@ -157,8 +157,9 @@ export class Gateway {
         this.limiter.settle(tenant.id, estimatedTokens, 0);
         const { response } = hit;
         event.cache = hit.kind;
+        event.cacheSource = response.sourceRequestId;
         event.policy = "cache";
-        event.routeReason = `${hit.kind} cache hit (similarity ${hit.similarity.toFixed(3)}) from ${response.sourceRequestId}`;
+        event.routeReason = `${hit.kind} cache hit (similarity ${hit.similarity.toFixed(3)})`;
         event.model = response.modelId;
         event.tier = this.model(response.modelId)?.tier ?? null;
         event.premiumCostUsd = costUsd(this.premiumReference, response.usage);

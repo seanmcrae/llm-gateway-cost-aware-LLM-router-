@@ -11,7 +11,10 @@ export interface Complexity {
 const REASONING =
   /\b(prove|proof|derive|step[- ]by[- ]step|explain why|trade-?offs?|analy[sz]e|compare|design|architect\w*|optimi[sz]e|debug|root cause|edge cases?|complexity|algorithm|invariant|concurren\w+|race condition|strategy|migrat\w+|threat model)\b/gi;
 const SIMPLE =
-  /\b(translate|classify|sentiment|extract|rewrite|reword|fix (?:the )?(?:typo|grammar|spelling)|one word|yes or no|tl;?dr|label|title for|capitali[sz]e|convert .* to (?:json|csv|uppercase|lowercase))\b/gi;
+  /\b(translate|classify|sentiment|extract|rewrite|reword|fix (?:the )?(?:typo|grammar|spelling)|one word|a few words|yes or no|tl;?dr|label|title for|capitali[sz]e|convert .* to (?:json|csv|uppercase|lowercase))\b/gi;
+const CODEGEN =
+  /\b(?:write|implement|generate|create)\b[^.?!\n]{0,60}\b(?:function|query|script|class|regex|endpoint|unit tests?|migration)\b/i;
+const NUMBER = /\d[\d,.:]*/g;
 const CODE =
   /```|\bfunction\b|=>|\bdef \w+\(|\bclass \w+|\bSELECT\b.*\bFROM\b|\bimport \w+|[{};]\s*$/im;
 const CONSTRAINT =
@@ -44,6 +47,12 @@ export function scoreComplexity(messages: readonly Message[]): Complexity {
 
   const code = CODE.test(userText);
   if (code) signals.push("code");
+  const codegen = !code && CODEGEN.test(userText);
+  if (codegen) signals.push("codegen");
+
+  // Several quantities in one prompt usually means multi-step arithmetic or scheduling.
+  const numbers = (userText.match(NUMBER) ?? []).length;
+  if (numbers >= 4) signals.push(`numbers:${numbers}`);
 
   const constraints =
     (userText.match(CONSTRAINT) ?? []).length +
@@ -64,6 +73,8 @@ export function scoreComplexity(messages: readonly Message[]): Complexity {
     0.2 * length +
     0.3 * clamp(reasoning.size / 2) +
     0.25 * (code ? 1 : 0) +
+    0.2 * (codegen ? 1 : 0) +
+    0.2 * clamp((numbers - 2) / 4) +
     0.15 * clamp(constraints / 5) +
     0.1 * clamp((questions - 1) / 2) +
     0.05 * clamp(turns / 4) -

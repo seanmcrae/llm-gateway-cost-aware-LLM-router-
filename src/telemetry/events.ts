@@ -25,6 +25,8 @@ export interface RequestEvent {
   model: string | null;
   tier: string | null;
   cache: "miss" | "exact" | "semantic" | "bypass";
+  /** For cache hits: the request whose upstream answer was reused. */
+  cacheSource?: string;
   attempts: AttemptRecord[];
   /** Models tried and abandoned before the one that answered. */
   fallbacks: number;

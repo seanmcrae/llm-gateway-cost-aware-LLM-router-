@@ -72,7 +72,7 @@
   ],
   "routing": {
     "tiers": ["cheap", "standard", "premium"],
-    "thresholds": [0.3, 0.55],
+    "thresholds": [0.25, 0.5],
     "defaultPolicy": "routed",
     "budgetDowngradeAt": 0.8,
     "maxModelsPerRequest": 3,

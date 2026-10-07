@@ -168,7 +168,7 @@ describe("Gateway", () => {
     const second = await gateway.handle(request, { tenant });
     expect(providers.get("small")?.calls).toHaveLength(1);
     expect(second.event).toMatchObject({ cache: "exact", costUsd: 0, model: "small" });
-    expect(second.event.routeReason).toContain(first.event.requestId);
+    expect(second.event.cacheSource).toBe(first.event.requestId);
     expect(second.completion.choices[0].message.content).toBe("answer from small");
     const bypass = await gateway.handle(request, { tenant, cache: "off" });
     expect(bypass.event.cache).toBe("bypass");

@@ -1,4 +1,0 @@
-llm-gateway listening on http://127.0.0.1:18787/v1
-models: mock-small (cheap), mock-medium (standard), mock-large (premium), mock-large-alt (premium)
-tenants: acme, globex
-telemetry: out/events.jsonl
