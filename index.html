@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llm-gateway: cost-aware, OpenAI-compatible LLM routing</title>
+<meta name="description" content="OpenAI-compatible LLM gateway that routes requests across model tiers by complexity, budget, cost cap and latency SLO, with fallbacks, retries, circuit breakers, caching, per-tenant budgets and cost telemetry.">
+<link rel="canonical" href="https://seanmcrae.github.io/llm-gateway-cost-aware-LLM-router-/">
+<style>
+:root{--fg:#111827;--muted:#4b5563;--line:#e5e7eb;--bg:#fff;--soft:#f8fafc;--accent:#1d4ed8;--code:#f1f5f9}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--fg);background:var(--bg)}
+a{color:var(--accent)}code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em}
+code{background:var(--code);padding:.1em .3em;border-radius:4px}pre code{background:none;padding:0}
+pre{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto}
+pre.demo{max-height:560px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+nav.top{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;gap:20px;align-items:center;height:52px;overflow-x:auto;white-space:nowrap}
+nav.top a{color:var(--fg);text-decoration:none;font-size:.92rem}nav.top a.brand{font-weight:700;margin-right:auto}
+.hero{background:linear-gradient(180deg,#f8fafc,#fff);border-bottom:1px solid var(--line);padding:48px 0 40px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:36px;align-items:center}
+.eyebrow{color:var(--muted);font-size:.85rem;margin:0}
+h1{font-size:2.1rem;line-height:1.2;margin:.3em 0 .4em;letter-spacing:-.01em}
+.lede{color:#374151;font-size:1.02rem}
+.kpis{list-style:none;padding:0;display:flex;gap:26px;margin:22px 0 6px;flex-wrap:wrap}
+.kpis strong{display:block;font-size:1.6rem;line-height:1.15}.kpis span{color:var(--muted);font-size:.84rem}
+.fine{color:var(--muted);font-size:.85rem}
+.button{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px;font-weight:600;margin:4px 8px 4px 0}
+.button.ghost{background:none;color:var(--accent);border:1px solid var(--accent)}
+.chart{margin:0}.chart svg,.graph svg{max-width:100%;height:auto;display:block}
+.chart svg{border:1px solid var(--line);border-radius:10px}
+section{padding:36px 0 8px}h2{font-size:1.6rem;margin:0 0 .5em}h3{margin:1.6em 0 .5em}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}th{background:var(--soft)}
+table.num td:not(:first-child){text-align:right;white-space:nowrap}tr.gap td{background:#fff7ed}
+.graph{overflow-x:auto;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
+.prose{max-width:860px}.arch{display:grid;grid-template-columns:minmax(0,520px) minmax(0,1fr);gap:32px;align-items:start}.arch figure{margin:0;position:sticky;top:64px}.arch h3{margin-top:0}figcaption{padding:4px 8px}.product table{font-size:.86rem}
+footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0;color:var(--muted);font-size:.88rem}
+@media (max-width:960px){.hero-grid,.arch{grid-template-columns:1fr}.arch figure{position:static}h1{font-size:1.7rem}}
+</style>
+</head>
+<body>
+<nav class="top"><div class="wrap"><a class="brand" href="#top">llm-gateway</a><a href="#results">Results</a><a href="#quickstart">Quickstart</a><a href="#architecture">Architecture</a><a href="#evaluation">Evaluation</a><a href="#product">Product brief</a><a href="#limitations">Limitations</a><a href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-">GitHub</a></div></nav>
+
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">llm-gateway v0.1.0 &middot; TypeScript &middot; OpenAI-compatible</p>
+      <h1>Send each LLM request to the cheapest model that can answer it, and keep serving when a provider fails.</h1>
+      <p class="lede">A drop-in <code>/v1/chat/completions</code> gateway that routes across model tiers by task complexity, budget, cost cap and latency SLO, with fallback chains, retries, circuit breakers, response caching, per-tenant budgets and rate limits, and per-request cost telemetry. Runs with a deterministic mock provider, so everything on this page was produced without API keys.</p>
+      <ul class="kpis">
+        <li><strong>65% lower</strong><span>cost than always-premium<br>($0.44 vs $1.26 per 1k)</span></li>
+        <li><strong>684 ms</strong><span>p50 latency<br>vs 1910 ms premium</span></li>
+        <li><strong>86.0%</strong><span>quality proxy<br>vs 98.3% premium</span></li>
+      </ul>
+      <p class="fine">Routed policy, <code>npm run bench</code>, 300 prompts from the synthetic test split, simulated providers with illustrative prices. The quality proxy is a simulation; see <a href="#evaluation">how evaluation works</a>.</p>
+      <p class="cta"><a class="button" href="#results">See the results</a> <a class="button ghost" href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-">View on GitHub</a></p>
+    </div>
+    <figure class="chart"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" width="760" height="470" role="img" aria-label="Quality proxy versus cost per 1,000 requests for each routing policy" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+<rect width="760" height="470" fill="#ffffff"/>
+<text x="24" y="32" font-size="18" font-weight="600" fill="#111827">Quality vs cost: fixed tiers and routed policies</text>
+<text x="24" y="54" font-size="13" fill="#4b5563">npm run bench: 300 prompts, synthetic test split, mock providers. Labels: quality, cost per 1k, p95 latency.</text>
+<line x1="64" y1="378" x2="736" y2="378" stroke="#e5e7eb"/>
+<text x="56" y="382" font-size="11" fill="#6b7280" text-anchor="end">50%</text>
+<line x1="64" y1="317.2" x2="736" y2="317.2" stroke="#e5e7eb"/>
+<text x="56" y="321.2" font-size="11" fill="#6b7280" text-anchor="end">60%</text>
+<line x1="64" y1="256.4" x2="736" y2="256.4" stroke="#e5e7eb"/>
+<text x="56" y="260.4" font-size="11" fill="#6b7280" text-anchor="end">70%</text>
+<line x1="64" y1="195.6" x2="736" y2="195.6" stroke="#e5e7eb"/>
+<text x="56" y="199.6" font-size="11" fill="#6b7280" text-anchor="end">80%</text>
+<line x1="64" y1="134.8" x2="736" y2="134.8" stroke="#e5e7eb"/>
+<text x="56" y="138.8" font-size="11" fill="#6b7280" text-anchor="end">90%</text>
+<line x1="64" y1="74" x2="736" y2="74" stroke="#e5e7eb"/>
+<text x="56" y="78" font-size="11" fill="#6b7280" text-anchor="end">100%</text>
+<line x1="64" y1="74" x2="64" y2="378" stroke="#f1f5f9"/>
+<text x="64" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.00</text>
+<line x1="148" y1="74" x2="148" y2="378" stroke="#f1f5f9"/>
+<text x="148" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.20</text>
+<line x1="232" y1="74" x2="232" y2="378" stroke="#f1f5f9"/>
+<text x="232" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.40</text>
+<line x1="316" y1="74" x2="316" y2="378" stroke="#f1f5f9"/>
+<text x="316" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.60</text>
+<line x1="400" y1="74" x2="400" y2="378" stroke="#f1f5f9"/>
+<text x="400" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$0.80</text>
+<line x1="484" y1="74" x2="484" y2="378" stroke="#f1f5f9"/>
+<text x="484" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.00</text>
+<line x1="568" y1="74" x2="568" y2="378" stroke="#f1f5f9"/>
+<text x="568" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.20</text>
+<line x1="652" y1="74" x2="652" y2="378" stroke="#f1f5f9"/>
+<text x="652" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.40</text>
+<line x1="736" y1="74" x2="736" y2="378" stroke="#f1f5f9"/>
+<text x="736" y="396" font-size="11" fill="#6b7280" text-anchor="middle">$1.60</text>
+<text x="400" y="418" font-size="12" fill="#374151" text-anchor="middle">Cost per 1,000 requests (USD, illustrative prices)</text>
+<text x="16" y="226" font-size="12" fill="#374151" text-anchor="middle" transform="rotate(-90 16 226)">Quality proxy</text>
+<path d="M106.8,282.5 L140.9,240 L202.6,193.8 L206.8,183.4 L249.6,159.1 L271.1,145.1 L298.8,118.4" fill="none" stroke="#93c5fd" stroke-width="2"/>
+<circle cx="106.8" cy="282.5" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.6/0.9: 65.7% at $0.10 per 1k, p95 1.7 s</title></circle>
+<circle cx="140.9" cy="240" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.5/0.75: 72.7% at $0.18 per 1k, p95 2.2 s</title></circle>
+<circle cx="202.6" cy="193.8" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.4/0.65: 80.3% at $0.33 per 1k, p95 3.4 s</title></circle>
+<circle cx="206.8" cy="183.4" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.3/0.55: 82% at $0.34 per 1k, p95 3.4 s</title></circle>
+<circle cx="249.6" cy="159.1" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.25/0.5: 86% at $0.44 per 1k, p95 3.5 s</title></circle>
+<circle cx="271.1" cy="145.1" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.2/0.4: 88.3% at $0.49 per 1k, p95 3.5 s</title></circle>
+<circle cx="298.8" cy="118.4" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>routed 0.1/0.3: 92.7% at $0.56 per 1k, p95 3.6 s</title></circle>
+<rect x="80.7" y="299" width="12" height="12" fill="#374151"><title>always-cheap: 62% at $0.05 per 1k, p50 0.5 s, p95 1.0 s</title></rect>
+<text x="98.7" y="305" font-size="12" fill="#111827" text-anchor="start">always-cheap</text>
+<text x="98.7" y="319" font-size="11" fill="#6b7280" text-anchor="start">62.0%, $0.05, p95 1.0 s</text>
+<rect x="179.8" y="189.6" width="12" height="12" fill="#374151"><title>always-standard: 80% at $0.29 per 1k, p50 1.0 s, p95 2.0 s</title></rect>
+<line x1="185.8" y1="195.6" x2="173.8" y2="171.6" stroke="#9ca3af" stroke-width="1"/>
+<text x="169.8" y="169.6" font-size="12" fill="#111827" text-anchor="end">always-standard</text>
+<text x="169.8" y="183.6" font-size="11" fill="#6b7280" text-anchor="end">80.0%, $0.29, p95 2.0 s</text>
+<rect x="586.8" y="78.3" width="12" height="12" fill="#374151"><title>always-premium: 98.3% at $1.26 per 1k, p50 1.9 s, p95 4.1 s</title></rect>
+<text x="580.8" y="84.3" font-size="12" fill="#111827" text-anchor="end">always-premium</text>
+<text x="580.8" y="98.3" font-size="11" fill="#6b7280" text-anchor="end">98.3%, $1.26, p95 4.1 s</text>
+<circle cx="249.6" cy="159.1" r="7.5" fill="#1d4ed8" stroke="#fff" stroke-width="2"><title>routed: 86% at $0.44 per 1k, p50 0.7 s, p95 3.5 s</title></circle>
+<line x1="249.6" y1="159.1" x2="315.6" y2="195.1" stroke="#9ca3af" stroke-width="1"/>
+<text x="319.6" y="193.1" font-size="12" fill="#111827" text-anchor="start">routed</text>
+<text x="319.6" y="207.1" font-size="11" fill="#6b7280" text-anchor="start">86.0%, $0.44, p95 3.5 s</text>
+<path d="M208.9,151.1 L216.9,159.1 L208.9,167.1 L200.9,159.1 Z" fill="#0f766e"><title>routed + exact cache: 86% at $0.34 per 1k, p50 0.4 s, p95 3.4 s</title></path>
+<line x1="208.9" y1="159.1" x2="172.9" y2="121.1" stroke="#9ca3af" stroke-width="1"/>
+<text x="168.9" y="119.1" font-size="12" fill="#111827" text-anchor="end">routed + exact cache</text>
+<text x="168.9" y="133.1" font-size="11" fill="#6b7280" text-anchor="end">86.0%, $0.34, p95 3.4 s</text>
+<path d="M168.6,213.7 L176.6,221.7 L168.6,229.7 L160.6,221.7 Z" fill="#c2410c"><title>routed + semantic cache: 75.7% at $0.25 per 1k, p50 0.3 s, p95 3.1 s</title></path>
+<line x1="168.6" y1="221.7" x2="180.6" y2="249.7" stroke="#9ca3af" stroke-width="1"/>
+<text x="184.6" y="247.7" font-size="12" fill="#111827" text-anchor="start">routed + semantic cache</text>
+<text x="184.6" y="261.7" font-size="11" fill="#6b7280" text-anchor="start">75.7%, $0.25, p95 3.1 s</text>
+<rect x="64" y="440" width="12" height="12" fill="#374151"><title>Fixed tier</title></rect>
+<text x="82" y="450" font-size="11" fill="#374151">Fixed tier</text>
+<circle cx="164" cy="446" r="7.5" fill="#1d4ed8" stroke="#fff" stroke-width="2"><title>Routed (default)</title></circle>
+<text x="176" y="450" font-size="11" fill="#374151">Routed (default)</text>
+<circle cx="294" cy="446" r="4" fill="#93c5fd" stroke="#1d4ed8" stroke-width="1"><title>Threshold sweep</title></circle>
+<text x="306" y="450" font-size="11" fill="#374151">Threshold sweep</text>
+<path d="M418,438 L426,446 L418,454 L410,446 Z" fill="#0f766e"><title>Routed + exact cache</title></path>
+<text x="430" y="450" font-size="11" fill="#374151">Routed + exact cache</text>
+<path d="M572,438 L580,446 L572,454 L564,446 Z" fill="#c2410c"><title>Routed + semantic cache</title></path>
+<text x="584" y="450" font-size="11" fill="#374151">Routed + semantic cache</text>
+</svg>
+</figure>
+  </div>
+</header>
+<main>
+
+<section id="results" class="wrap">
+  <h2>Results</h2>
+  <p>Each policy replays the same 300 prompts (bench/prompts.synthetic.jsonl, test split) through the gateway's HTTP app. Thresholds were tuned on the separate dev split. Default config: config/default.json (thresholds 0.25/0.5).</p>
+  <table class="num"><thead><tr><th>Policy</th><th>Quality proxy</th><th>Cost / 1k req</th><th>p50</th><th>p95</th><th>Tier mix (cheap / std / premium)</th><th>Retries</th><th>Cache hits (false)</th></tr></thead><tbody><tr><td>always-cheap</td><td>62.0%</td><td>$0.05</td><td>506 ms</td><td>1044 ms</td><td>100% / 0% / 0%</td><td>0</td><td>-</td></tr><tr><td>always-standard</td><td>80.0%</td><td>$0.29</td><td>955 ms</td><td>2042 ms</td><td>0% / 100% / 0%</td><td>4</td><td>-</td></tr><tr><td>always-premium</td><td>98.3%</td><td>$1.26</td><td>1910 ms</td><td>4099 ms</td><td>0% / 0% / 100%</td><td>7</td><td>-</td></tr><tr><td>routed</td><td>86.0%</td><td>$0.44</td><td>684 ms</td><td>3472 ms</td><td>60% / 15% / 25%</td><td>5</td><td>-</td></tr><tr><td>routed + exact cache</td><td>86.0%</td><td>$0.34</td><td>434 ms</td><td>3351 ms</td><td>59% / 16% / 26%</td><td>3</td><td>84 (0)</td></tr><tr><td>routed + semantic cache</td><td>75.7%</td><td>$0.25</td><td>315 ms</td><td>3078 ms</td><td>61% / 16% / 23%</td><td>2</td><td>129 (35)</td></tr></tbody></table>
+  <ul>
+    <li><b>Against premium:</b> routing cut cost 65% and p50 latency from 1910 ms to 684 ms, for 12.3 points of quality proxy.</li>
+    <li><b>Against a fixed standard tier:</b> 6.0 points better for $0.15 more per 1k requests. Lower thresholds trace the frontier upward: routed 0.1/0.3 reaches 92.7% at $0.56.</li>
+    <li><b>Exact cache:</b> 84 hits, 0 wrong, 22% cheaper than routing alone. <b>Semantic cache:</b> 129 hits, of which 35 answered a different question; quality fell to 75.7%. It is off by default.</li>
+    <li><b>Blind spot:</b> on short puzzle-style prompts with no complexity cues (<code>tricky</code>), the router scores 8.0% against 100.0% for premium. That category explains most of the gap.</li>
+  </ul>
+  <h3>Quality proxy by prompt category</h3>
+  <p class="fine">Rows highlighted where routing loses 30 points or more against premium.</p>
+  <table class="num"><thead><tr><th>Category</th><th>always-cheap</th><th>always-standard</th><th>always-premium</th><th>routed</th></tr></thead><tbody><tr><td>classify</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>100.0%</td></tr><tr class="gap"><td>code</td><td>46.7%</td><td>66.7%</td><td>100.0%</td><td>66.7%</td></tr><tr><td>debug</td><td>26.9%</td><td>46.2%</td><td>100.0%</td><td>100.0%</td></tr><tr><td>design</td><td>3.8%</td><td>26.9%</td><td>84.6%</td><td>84.6%</td></tr><tr><td>extract</td><td>90.9%</td><td>95.5%</td><td>100.0%</td><td>90.9%</td></tr><tr><td>long-easy</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>100.0%</td></tr><tr><td>math</td><td>21.7%</td><td>73.9%</td><td>95.7%</td><td>95.7%</td></tr><tr><td>qa</td><td>100.0%</td><td>100.0%</td><td>100.0%</td><td>100.0%</td></tr><tr><td>rewrite</td><td>92.0%</td><td>100.0%</td><td>100.0%</td><td>92.0%</td></tr><tr><td>sql</td><td>41.7%</td><td>83.3%</td><td>100.0%</td><td>83.3%</td></tr><tr><td>summarize</td><td>71.9%</td><td>96.9%</td><td>100.0%</td><td>90.6%</td></tr><tr class="gap"><td>tricky</td><td>4.0%</td><td>52.0%</td><td>100.0%</td><td>8.0%</td></tr></tbody></table>
+  <h3>Threshold sweep</h3>
+  <p class="fine">Routed policy, no cache, complexity thresholds (cheap | standard, standard | premium). These are the light blue points in the chart.</p>
+  <table class="num"><thead><tr><th>Policy</th><th>Quality proxy</th><th>Cost / 1k req</th><th>p50</th><th>p95</th><th>Tier mix (cheap / std / premium)</th><th>Retries</th><th>Cache hits (false)</th></tr></thead><tbody><tr><td>routed 0.1/0.3</td><td>92.7%</td><td>$0.56</td><td>1003 ms</td><td>3623 ms</td><td>38% / 28% / 34%</td><td>4</td><td>-</td></tr><tr><td>routed 0.2/0.4</td><td>88.3%</td><td>$0.49</td><td>721 ms</td><td>3472 ms</td><td>55% / 15% / 30%</td><td>5</td><td>-</td></tr><tr><td>routed 0.25/0.5</td><td>86.0%</td><td>$0.44</td><td>684 ms</td><td>3472 ms</td><td>60% / 15% / 25%</td><td>5</td><td>-</td></tr><tr><td>routed 0.3/0.55</td><td>82.0%</td><td>$0.34</td><td>632 ms</td><td>3351 ms</td><td>66% / 17% / 17%</td><td>4</td><td>-</td></tr><tr><td>routed 0.4/0.65</td><td>80.3%</td><td>$0.33</td><td>597 ms</td><td>3351 ms</td><td>70% / 13% / 17%</td><td>3</td><td>-</td></tr><tr><td>routed 0.5/0.75</td><td>72.7%</td><td>$0.18</td><td>550 ms</td><td>2196 ms</td><td>75% / 21% / 4%</td><td>2</td><td>-</td></tr><tr><td>routed 0.6/0.9</td><td>65.7%</td><td>$0.10</td><td>528 ms</td><td>1653 ms</td><td>83% / 17% / 0%</td><td>1</td><td>-</td></tr></tbody></table>
+</section>
+
+<section id="quickstart" class="wrap">
+  <h2>Quickstart</h2>
+  <p>Requires Node 20 or later. No API keys: the bundled config uses simulated models.</p>
+  <pre><code>git clone https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-.git llm-gateway &amp;&amp; cd llm-gateway
+npm ci &amp;&amp; npm run build &amp;&amp; npm start      # http://127.0.0.1:8787/v1
+
+curl -s http://127.0.0.1:8787/v1/chat/completions \
+  -H 'authorization: Bearer sk-local-acme-demo' -H 'content-type: application/json' \
+  -d '{"model":"auto","temperature":0,"messages":[{"role":"user","content":"Translate to French: good morning"}]}' -i</code></pre>
+  <p>Point any OpenAI SDK at <code>http://127.0.0.1:8787/v1</code>. Use <code>model: "auto"</code> to route, a tier name (<code>cheap</code>, <code>standard</code>, <code>premium</code>) to fix a tier, or a model id to pin one. <code>npm run demo</code> prints the walkthrough below; <code>npm run bench</code> reruns the benchmark.</p>
+  <h3>Demo output</h3>
+  <p class="fine">Real output of <code>npm run demo</code>, regenerated when this page was built.</p>
+  <pre class="demo"><code>Routing by complexity (tenant acme, model=auto)
+
+&gt; Easy: sentiment classification
+  200 mock-small (cheap)  cost $0.000021  latency 319 ms  attempts 1  cache miss
+  route: complexity 0.00 -&gt; cheap (simple:classify,sentiment)
+
+&gt; Medium: small coding task
+  200 mock-medium (standard)  cost $0.000155  latency 935 ms  attempts 1  cache miss
+  route: complexity 0.40 -&gt; standard (code)
+
+&gt; Hard: multi-constraint design question
+  200 mock-large (premium)  cost $0.002067  latency 2834 ms  attempts 1  cache miss
+  route: complexity 0.67 -&gt; premium (reasoning:design,migration,analyze; constraints:4; questions:2)
+
+&gt; Same easy request again (temperature 0)
+  200 mock-small (cheap)  cost $0.000000  latency 0 ms  attempts 0  cache exact
+  route: exact cache hit (similarity 1.000)
+
+Per-request controls
+
+&gt; Hard question with x-llm-gateway-max-cost-usd: 0.004
+  200 mock-medium (standard)  cost $0.000458  latency 1853 ms  attempts 1  cache bypass
+  route: complexity 0.67 -&gt; premium (reasoning:design,migration,analyze; constraints:4; questions:2); max cost $0.004 excluded mock-large
+
+&gt; Hard question for tenant globex (latency SLO 5000 ms)
+  200 mock-medium (standard)  cost $0.000458  latency 1452 ms  attempts 1  cache miss
+  route: complexity 0.67 -&gt; premium (reasoning:design,migration,analyze; constraints:4; questions:2); latency SLO 5000 ms: mock-medium before mock-large
+
+&gt; Pinned model, bypassing the router
+  200 mock-large-alt (premium)  cost $0.000510  latency 1035 ms  attempts 1  cache bypass
+  route: pinned to mock-large-alt
+
+Failure handling: mock-large forced to fail every call
+
+&gt; Hard question #1
+  200 mock-large-alt (premium)  cost $0.002211  latency 5234 ms  attempts 4  cache miss
+  route: complexity 0.67 -&gt; premium (reasoning:design,migration,analyze; constraints:4; questions:2)
+
+&gt; Hard question #2
+  200 mock-large-alt (premium)  cost $0.001476  latency 3946 ms  attempts 4  cache miss
+  route: complexity 0.67 -&gt; premium (reasoning:design,migration,analyze; constraints:4; questions:2)
+
+&gt; Hard question #3
+  200 mock-large-alt (premium)  cost $0.001086  latency 1551 ms  attempts 2  cache miss
+  route: complexity 0.67 -&gt; premium (reasoning:design,migration,analyze; constraints:4; questions:2)
+
+GET /v1/usage (acme)
+  {&quot;tenant&quot;:&quot;acme&quot;,&quot;month&quot;:&quot;2026-10&quot;,&quot;budgetUsd&quot;:50,&quot;spentUsd&quot;:0.00321125,&quot;reservedUsd&quot;:0,&quot;remainingUsd&quot;:49.99678875,&quot;spentFraction&quot;:0.000064}
+
+GET /metrics (excerpt, failing gateway)
+  llm_gateway_upstream_attempts_total{model=&quot;mock-large&quot;,outcome=&quot;error&quot;} 5
+  llm_gateway_upstream_attempts_total{model=&quot;mock-large-alt&quot;,outcome=&quot;ok&quot;} 3
+  llm_gateway_upstream_attempts_total{model=&quot;mock-large&quot;,outcome=&quot;breaker_open&quot;} 2
+  llm_gateway_breaker_state{model=&quot;mock-large&quot;} 2
+  llm_gateway_breaker_state{model=&quot;mock-large-alt&quot;} 0
+</code></pre>
+</section>
+
+<section id="architecture" class="wrap">
+  <h2>Architecture</h2>
+  <div class="arch">
+    <figure class="graph"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 617 712" width="617" height="712" role="img" aria-label="llm-gateway request pipeline" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+<defs><marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker></defs>
+<path d="M257,51 C257,71 257,71 257,91" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M257,141 C257,161 257,161 257,181" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M257,216 C257,236 257,236 257,256" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M257,306 C257,326 238,326 238,346" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<text x="253.5" y="330" font-size="11" fill="#4b5563" text-anchor="start">miss</text>
+<path d="M238,411 C238,434.75 121,434.75 121,458.5" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M238,411 C238,431 355,431 355,451" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M355,501 C355,521 140,521 140,541" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M140,591 C140,611 257,611 257,631" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M362,663.5 C494,663.5 494,476 460,476" fill="none" stroke="#6b7280" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arch-arrow)"/>
+<path d="M355,501 C355,521 374,521 374,541" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<path d="M257,306 C257,342.25 374,342.25 374,378.5 C374,378.5 374,378.5 374,378.5 C374,427.25 491,427.25 491,476 C491,476 491,476 491,476 C491,508.5 374,508.5 374,541" fill="none" stroke="#6b7280" stroke-width="1.4" marker-end="url(#arch-arrow)"/>
+<text x="380" y="382.5" font-size="11" fill="#4b5563" text-anchor="start">hit</text>
+<g><title>OpenAI-compatible client</title><rect x="152" y="16" width="210" height="35" rx="6" fill="#eef2ff" stroke="#94a3b8"/>
+<text x="257" y="38" font-size="12" fill="#111827" text-anchor="middle">OpenAI-compatible client</text>
+</g>
+<g><title>HTTP API
+auth, validation, SSE</title><rect x="152" y="91" width="210" height="50" rx="6" fill="#eef2ff" stroke="#94a3b8"/>
+<text x="257" y="113" font-size="12" fill="#111827" text-anchor="middle">HTTP API</text>
+<text x="257" y="128" font-size="12" fill="#111827" text-anchor="middle">auth, validation, SSE</text>
+</g>
+<g><title>Tenant rate limit</title><rect x="152" y="181" width="210" height="35" rx="6" fill="#fef3c7" stroke="#94a3b8"/>
+<text x="257" y="203" font-size="12" fill="#111827" text-anchor="middle">Tenant rate limit</text>
+</g>
+<g><title>Response cache
+exact or semantic</title><rect x="152" y="256" width="210" height="50" rx="6" fill="#fef3c7" stroke="#94a3b8"/>
+<text x="257" y="278" font-size="12" fill="#111827" text-anchor="middle">Response cache</text>
+<text x="257" y="293" font-size="12" fill="#111827" text-anchor="middle">exact or semantic</text>
+</g>
+<g><title>Router
+complexity, budget, cost cap, SLO</title><rect x="133" y="346" width="210" height="65" rx="6" fill="#eef2ff" stroke="#94a3b8"/>
+<text x="238" y="368" font-size="12" fill="#111827" text-anchor="middle">Router</text>
+<text x="238" y="383" font-size="12" fill="#111827" text-anchor="middle">complexity, budget, cost cap,</text>
+<text x="238" y="398" font-size="12" fill="#111827" text-anchor="middle">SLO</text>
+</g>
+<g><title>Budget ledger</title><rect x="16" y="458.5" width="210" height="35" rx="6" fill="#dcfce7" stroke="#94a3b8"/>
+<text x="121" y="480.5" font-size="12" fill="#111827" text-anchor="middle">Budget ledger</text>
+</g>
+<g><title>Executor
+fallback chain, retries</title><rect x="250" y="451" width="210" height="50" rx="6" fill="#eef2ff" stroke="#94a3b8"/>
+<text x="355" y="473" font-size="12" fill="#111827" text-anchor="middle">Executor</text>
+<text x="355" y="488" font-size="12" fill="#111827" text-anchor="middle">fallback chain, retries</text>
+</g>
+<g><title>Circuit breaker
+per model</title><rect x="35" y="541" width="210" height="50" rx="6" fill="#fef3c7" stroke="#94a3b8"/>
+<text x="140" y="563" font-size="12" fill="#111827" text-anchor="middle">Circuit breaker</text>
+<text x="140" y="578" font-size="12" fill="#111827" text-anchor="middle">per model</text>
+</g>
+<g><title>Provider adapters
+OpenAI-compatible, Anthropic, mock</title><rect x="152" y="631" width="210" height="65" rx="6" fill="#eef2ff" stroke="#94a3b8"/>
+<text x="257" y="653" font-size="12" fill="#111827" text-anchor="middle">Provider adapters</text>
+<text x="257" y="668" font-size="12" fill="#111827" text-anchor="middle">OpenAI-compatible, Anthropic,</text>
+<text x="257" y="683" font-size="12" fill="#111827" text-anchor="middle">mock</text>
+</g>
+<g><title>Telemetry
+JSONL events, Prometheus</title><rect x="269" y="541" width="210" height="50" rx="6" fill="#eef2ff" stroke="#94a3b8"/>
+<text x="374" y="563" font-size="12" fill="#111827" text-anchor="middle">Telemetry</text>
+<text x="374" y="578" font-size="12" fill="#111827" text-anchor="middle">JSONL events, Prometheus</text>
+</g>
+</svg>
+<figcaption class="fine">Drawn at build time from the Mermaid diagram in the README.</figcaption></figure>
+    <div class="prose"><h3>Design decisions</h3><ul>
+<li><strong>Heuristic scoring, not a model call, on the hot path.</strong> Scoring runs on every request, so it is
+a handful of regexes and counts with every contributing signal reported back to the client. A
+learned router is the obvious next step, and the benchmark is built to evaluate one.</li>
+<li><strong>Asymmetric errors.</strong> Routing a hard prompt cheap costs quality; routing an easy one premium only
+costs money. Weights lean towards over-routing, and the fallback chain goes up a tier before it
+goes down.</li>
+<li><strong>Hard constraints filter, soft ones reorder.</strong> Context window, cost cap and remaining budget
+remove candidates; the latency SLO only reorders them, because a slow answer is better than none.</li>
+<li><strong>Reserve, then settle.</strong> A request reserves its worst-case cost across the fallback chain before
+calling upstream and settles to provider-reported usage afterwards, so concurrent requests cannot
+overspend a budget together. Rate-limit token estimates are corrected the same way.</li>
+<li><strong>One breaker per model, outcomes from the gateway&#39;s view.</strong> Upstream 400s count as healthy (the
+request was bad, not the provider); auth failures skip to the next model without retries.</li>
+<li><strong>Cache only what is meant to be deterministic.</strong> Temperature-0 requests by default, never across
+tenants, and the semantic layer requires the earlier conversation to match exactly.</li>
+<li><strong>Buffered streaming.</strong> <code>stream: true</code> returns a correctly framed SSE stream after the full
+completion exists, so retries and fallbacks stay invisible. It keeps clients working but does not
+improve time to first token.</li>
+<li><strong>Everything time-dependent is injected.</strong> That is what lets the benchmark replay about 3,900 requests
+through the real HTTP stack in about two seconds and get identical results on every machine.</li>
+</ul>
+</div>
+  </div>
+</section>
+
+<section id="evaluation" class="wrap">
+  <h2>How evaluation works</h2>
+  <div class="prose"><p>The gateway only sees prompts. After each response, the harness reads which model answered and
+scores the answer with a <strong>quality proxy</strong>: a model of simulated capability <code>c</code> answers a prompt of
+labelled difficulty <code>d</code> acceptably with probability <code>sigmoid(2(c - d) + 1)</code>, with the random draw
+fixed per prompt so a stronger model never fails a prompt a weaker one passes. A cache hit counts
+only if the reused answer was acceptable and belonged to the same question. Cost is the sum of
+per-request costs from provider-reported tokens and configured prices. Latency is gateway-measured
+per request, including retries and backoff, on a virtual clock; requests are sequential, so it is
+service time rather than latency under load. Details in <a href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/blob/main/bench/README.md">bench/README.md</a>.</p>
+<p>The proxy measures routing decisions under a stated capability model. It says nothing about any
+real model&#39;s quality, and the absolute numbers depend on the illustrative capabilities and prices
+in <code>config/default.json</code>. The useful outputs are the relative positions of the policies and the
+per-category breakdown (<code>qualityByCategory</code> in <code>bench/results.json</code>).</p>
+</div>
+</section>
+
+<section id="product" class="wrap">
+  <h2>Product brief</h2>
+  <p class="fine">Rendered from <a href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/blob/main/docs/PRODUCT.md">docs/PRODUCT.md</a>.</p>
+  <div class="prose product"><h3>Problem</h3>
+<p>Teams that ship LLM features usually pick one model per feature and send it every request. The
+choice is made once, for the hardest case the team can think of, so a premium model ends up
+classifying sentiment and extracting order numbers at an order of magnitude more per token than a
+model that would do those jobs as well. Three other problems arrive with that setup:</p>
+<ul>
+<li><strong>Cost is invisible per request.</strong> Provider invoices are per account, not per feature or
+customer, so nobody can say which tenant or endpoint is spending the money until the bill arrives.</li>
+<li><strong>One provider is a single point of failure.</strong> 429s, 529 &quot;overloaded&quot; responses and timeouts are
+routine. Without retries, backoff and a second provider, each one becomes a user-facing error.</li>
+<li><strong>Budgets are enforced after the fact.</strong> A runaway loop or a heavy customer can spend a month&#39;s
+budget in an afternoon, because nothing checks spend before calling the model.</li>
+</ul>
+<p>A gateway in front of the providers can fix all four in one place, but only if switching to it
+costs a client nothing (same API) and its routing decisions are explainable enough to trust.</p>
+<h3>Users and jobs to be done</h3>
+<table>
+<thead>
+<tr>
+<th>User</th>
+<th>Job</th>
+<th>What they need from the gateway</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Application engineer adding an LLM feature</td>
+<td>&quot;Call a model without deciding which one, and without writing retry code.&quot;</td>
+<td>Drop-in OpenAI-compatible endpoint, <code>model: &quot;auto&quot;</code>, sane failure behaviour</td>
+</tr>
+<tr>
+<td>Platform or infra engineer</td>
+<td>&quot;Give every team LLM access with limits, and keep it up when a provider is down.&quot;</td>
+<td>Per-tenant keys, rate limits, budgets, breakers, fallbacks, Prometheus metrics</td>
+</tr>
+<tr>
+<td>Engineering or product lead who owns the AI budget</td>
+<td>&quot;Know what each feature costs and cut it without a quality regression I can&#39;t see.&quot;</td>
+<td>Per-request cost telemetry, a benchmark that shows the quality/cost trade-off before a policy change ships</td>
+</tr>
+<tr>
+<td>Finance or ops partner</td>
+<td>&quot;No surprise invoices.&quot;</td>
+<td>Hard monthly budgets with reservations, downgrade before the limit, usage endpoint</td>
+</tr>
+</tbody></table>
+<h3>Scope</h3>
+<p><strong>In (v0.1):</strong></p>
+<ul>
+<li><code>POST /v1/chat/completions</code> compatible with OpenAI clients, including buffered streaming.</li>
+<li>Routing policies: complexity-routed, fixed tier, pinned model; per-request cost cap and latency
+SLO; budget-aware downgrade.</li>
+<li>Fallback chain, retries with jittered backoff, per-attempt timeouts, per-model circuit breakers.</li>
+<li>Exact and semantic response caching for deterministic requests, scoped per tenant.</li>
+<li>Per-tenant API keys, requests-per-minute and tokens-per-minute limits, monthly budgets.</li>
+<li>JSONL request events and Prometheus metrics.</li>
+<li>OpenAI-compatible and Anthropic adapters; deterministic mock provider as the default.</li>
+<li>Offline replay benchmark with a synthetic prompt set, and a static docs site.</li>
+</ul>
+<p><strong>Out (for now):</strong></p>
+<ul>
+<li>Tool calling, function calling, <code>n &gt; 1</code>, images, audio and the embeddings endpoint.</li>
+<li>Token-by-token streaming passthrough (streaming is buffered).</li>
+<li>Shared state across instances (Redis or a database), an admin UI, SSO.</li>
+<li>Prompt or response content filtering, PII redaction.</li>
+<li>Billing and invoicing; the gateway reports cost, it does not charge for it.</li>
+</ul>
+<h3>Requirements</h3>
+<p>Functional:</p>
+<ol>
+<li>An unmodified OpenAI SDK pointed at the gateway&#39;s base URL works for chat completions.</li>
+<li>Every response states the model, tier, policy, cache result, cost and route reason in headers,
+and every request (success or failure) produces exactly one telemetry event.</li>
+<li>A request never starts if its worst-case cost exceeds the tenant&#39;s remaining budget.</li>
+<li>Transient upstream errors (429, 5xx, 529, timeouts, network) are retried with backoff and then
+fall back to another model; client errors (400) are not retried; auth errors skip the model.</li>
+<li>A model whose breaker is open is skipped without spending an attempt.</li>
+<li>Cached answers are never shared across tenants and are only used for temperature-0 requests
+unless the client opts in.</li>
+<li>Invalid configs fail at startup with every problem listed.</li>
+</ol>
+<p>Non-functional:</p>
+<ul>
+<li>Routing overhead is regexes and counts, no extra model call on the hot path.</li>
+<li>Runs with no API keys and no network by default; tests and CI never touch the network.</li>
+<li>Deterministic under test: time, sleep and randomness are injected.</li>
+</ul>
+<h3>Success metrics and evals</h3>
+<p>The gateway measures itself with a replay benchmark (<code>npm run bench</code>, method in
+<a href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/blob/main/bench/README.md">bench/README.md</a>) on the bundled synthetic prompt set. Thresholds are tuned
+on the dev split and reported on the test split. Current numbers (test split, 300 prompts,
+simulated providers):</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target for a policy change</th>
+<th>Current (routed vs always-premium)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cost per 1k requests</td>
+<td>Lower, with the change explained</td>
+<td>$0.44 vs $1.26 (65% lower)</td>
+</tr>
+<tr>
+<td>Quality proxy</td>
+<td>No more than the agreed drop vs the premium baseline</td>
+<td>86.0% vs 98.3%</td>
+</tr>
+<tr>
+<td>p50 / p95 latency</td>
+<td>No p95 regression beyond the tenant&#39;s SLO</td>
+<td>684 / 3472 ms vs 1910 / 4099 ms</td>
+</tr>
+<tr>
+<td>False cache hits</td>
+<td>Zero for any cache mode that is on by default</td>
+<td>Exact: 0 of 84 hits. Semantic: 35 of 129 (off by default)</td>
+</tr>
+<tr>
+<td>Quality per category</td>
+<td>No category collapses silently</td>
+<td><code>tricky</code> prompts: 8% routed vs 100% premium</td>
+</tr>
+</tbody></table>
+<p>The last row is why the benchmark reports per-category quality: the routed policy&#39;s aggregate
+looks acceptable while one category fails almost completely. In a real deployment the same
+metrics would come from the telemetry log (<code>costUsd</code>, <code>premiumCostUsd</code> for savings, <code>latencyMs</code>,
+<code>fallbacks</code>, <code>retries</code>, cache hit rate) plus a sampled offline grader for quality.</p>
+<p>Operational metrics on <code>/metrics</code>: request count by status and cache result, spend by tenant and
+model, upstream attempts by outcome, latency histogram, breaker state per model.</p>
+<h3>Minimum viable quality</h3>
+<p>Thresholds for shipping a routing policy or config change, read off the replay benchmark&#39;s test
+split. They are stated against the fixed-tier baselines in the same run, so they still mean
+something when prices or capabilities change. All quality figures are the simulated proxy.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Do not ship</th>
+<th>Ship</th>
+<th>Delight</th>
+<th>Current default (routed 0.25/0.5, exact cache)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Quality proxy</td>
+<td>Below always-standard (80.0%): a fixed mid tier would beat routing</td>
+<td>At least 85%</td>
+<td>At least 92%</td>
+<td>86.0%: ship</td>
+</tr>
+<tr>
+<td>Cost per 1k vs always-premium ($1.26)</td>
+<td>More than 50% of it</td>
+<td>At most 50%</td>
+<td>At most 30%</td>
+<td>$0.34, 27%: delight</td>
+</tr>
+<tr>
+<td>p95 latency</td>
+<td>Above always-premium (4,099 ms)</td>
+<td>At most always-premium</td>
+<td>At most always-standard (2,042 ms)</td>
+<td>3,351 ms: ship</td>
+</tr>
+<tr>
+<td>False cache hits, default-on cache mode</td>
+<td>Any</td>
+<td>Zero</td>
+<td>Zero</td>
+<td>0 of 84: ship</td>
+</tr>
+<tr>
+<td>Worst category</td>
+<td>Below always-cheap in that category (routing made it worse than the cheapest model)</td>
+<td>At or above always-cheap</td>
+<td>Every category at 50% or more</td>
+<td><code>tricky</code> 8% vs 4% always-cheap: ship, not delight</td>
+</tr>
+</tbody></table>
+<p>The default clears the ship bar and misses delight on quality and on the worst category, both for
+the same reason (<code>tricky</code> prompts, issue #6). In the threshold sweep, 0.1/0.3 reaches delight on
+quality (92.7%) and on the category floor (lowest is <code>tricky</code> at 52%) while staying at ship on cost
+(44% of premium). That was observed on the test split, so it cannot be adopted without re-tuning on
+dev first.</p>
+<h3>Cost at 1x and 10x usage</h3>
+<p>Estimates only: measured cost per 1k requests from <code>bench/results.json</code> multiplied by a volume.
+The per-token prices in <code>config/default.json</code> are illustrative tier shapes (cheap $0.15 / $0.60,
+standard $0.80 / $3.20, premium $3 / $15 per million input / output tokens), not vendor quotes, and
+nothing here comes from a real deployment. <strong>1x is a round 1M requests per month</strong>, chosen for
+illustration; the prompt mix is assumed to match the synthetic test split.</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th align="right">$ per 1k requests</th>
+<th align="right">1x: 1M requests / month</th>
+<th align="right">10x: 10M requests / month</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>always-premium (baseline)</td>
+<td align="right">1.259</td>
+<td align="right">about $1,260</td>
+<td align="right">about $12,600</td>
+</tr>
+<tr>
+<td>always-standard</td>
+<td align="right">0.290</td>
+<td align="right">about $290</td>
+<td align="right">about $2,900</td>
+</tr>
+<tr>
+<td>routed, no cache</td>
+<td align="right">0.442</td>
+<td align="right">about $440</td>
+<td align="right">about $4,420</td>
+</tr>
+<tr>
+<td>routed + exact cache (default)</td>
+<td align="right">0.345</td>
+<td align="right">about $345</td>
+<td align="right">about $3,450</td>
+</tr>
+</tbody></table>
+<p>Against always-premium, the default saves about $910 a month at 1x and about $9,100 at 10x. For
+scale, the demo tenant&#39;s $50 monthly budget in <code>config/default.json</code> covers about 145k requests at
+the default&#39;s cost per 1k.</p>
+<p>What does not scale linearly:</p>
+<ul>
+<li><strong>Cache savings depend on repetition, not volume.</strong> The test split repeats about a third of its
+questions; real traffic with fewer exact repeats gets closer to the no-cache line.</li>
+<li><strong>State is per process.</strong> At 10x a single instance is unlikely to be enough, and budgets, rate
+limits and breakers then need a shared store (Redis on the roadmap). That infrastructure, and the
+gateway&#39;s own compute, are not in these figures.</li>
+<li><strong>Routing quality, not price, is the larger risk at volume.</strong> At 10x the 25 <code>tricky</code> prompts in
+300 become roughly 830k cheap-tier answers a month at 8% proxy quality, if the mix holds.</li>
+</ul>
+<h3>Trade-offs and alternatives considered</h3>
+<ul>
+<li><strong>Heuristic router vs learned router vs LLM-as-router.</strong> A classifier trained on graded traffic
+would beat regexes, and asking a small model to rate difficulty would catch the &quot;short but hard&quot;
+prompts the heuristic misses. Both need labelled data or add a model call to every request. The
+heuristic ships first because it is free, explainable in a response header, and gives the
+benchmark a baseline any learned router has to beat.</li>
+<li><strong>Cascade (try cheap, escalate on low confidence) vs route up front.</strong> A cascade can be more
+accurate but pays for two calls and two latencies on every escalation, and needs a confidence
+signal the providers do not expose consistently. Route-up-front plus fallback keeps one call per
+request in the common case.</li>
+<li><strong>Semantic cache on vs off by default.</strong> It served about 50% more hits than exact matching on the
+benchmark, and on the same run 27% of its hits answered a different question. For templated
+prompts that differ in one detail, embedding similarity is the wrong signal. Exact caching is the
+default; semantic caching is opt-in per deployment.</li>
+<li><strong>Buffered vs passthrough streaming.</strong> Passthrough improves time to first token but makes
+fallback after the first byte impossible to hide. v0.1 buffers, so failures stay invisible.</li>
+<li><strong>In-memory vs shared state.</strong> In-memory state keeps the gateway a single binary with no
+dependencies; it means budgets and rate limits are per instance. Acceptable for one instance or
+a sidecar, not for a horizontally scaled deployment.</li>
+<li><strong>Build vs adopt.</strong> Hosted routers and open-source proxies exist. Building this one is about
+owning the policy layer (budget reservations, SLO-aware ordering, explainable routing) and a
+benchmark that makes policy changes reviewable, not about the proxying.</li>
+</ul>
+<h3>Risks</h3>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Router sends hard prompts to the cheap tier and quality drops unnoticed</td>
+<td>High (measured: <code>tricky</code> category)</td>
+<td>High</td>
+<td>Per-category quality in the benchmark; pin or fix the tier for sensitive endpoints; learned router on the roadmap</td>
+</tr>
+<tr>
+<td>Benchmark does not reflect real traffic</td>
+<td>High</td>
+<td>Medium</td>
+<td>Replay real (consented, scrubbed) traffic with a real grader before trusting absolute numbers</td>
+</tr>
+<tr>
+<td>Semantic cache returns a wrong answer</td>
+<td>Measured on the synthetic set</td>
+<td>High</td>
+<td>Off by default; exact cache only for temperature 0; threshold and false-hit rate reported</td>
+</tr>
+<tr>
+<td>Budget overshoot across instances</td>
+<td>Medium when scaled out</td>
+<td>Medium</td>
+<td>Single instance per budget today; shared ledger on the roadmap</td>
+</tr>
+<tr>
+<td>Provider price changes make cost numbers wrong</td>
+<td>Medium</td>
+<td>Low</td>
+<td>Prices are config, not code; telemetry records the price used at the time</td>
+</tr>
+<tr>
+<td>Gateway becomes a new single point of failure</td>
+<td>Medium</td>
+<td>High</td>
+<td>Stateless apart from caches and counters; run more than one behind a load balancer once state is shared</td>
+</tr>
+</tbody></table>
+<h3>Roadmap</h3>
+<p><strong>Now (v0.1, this repository):</strong> OpenAI-compatible endpoint, heuristic routing with budget, cost
+cap and SLO constraints, fallback chain with retries and breakers, exact and semantic caching,
+per-tenant limits and budgets, JSONL and Prometheus telemetry, OpenAI-compatible and Anthropic
+adapters, synthetic replay benchmark and docs site.</p>
+<p><strong>Next:</strong></p>
+<ul>
+<li>Replay mode against real providers with an LLM or rubric grader, so the quality proxy can be
+replaced by measured quality on a team&#39;s own prompts.</li>
+<li>Learned router (logistic regression on the existing features plus embedding features), compared
+against the heuristic on the same replay.</li>
+<li>Shared state in Redis for budgets, rate limits and breakers.</li>
+<li>Token-by-token streaming passthrough for the primary attempt, with buffered fallback.</li>
+<li>Per-tenant routing overrides by endpoint or prompt tag.</li>
+</ul>
+<p><strong>Later:</strong></p>
+<ul>
+<li>Cascade policy (cheap first, escalate on a self-check) as a third policy in the benchmark.</li>
+<li>Tool calling passthrough.</li>
+<li>Cost anomaly alerts from the telemetry stream.</li>
+<li>Admin UI for tenants, keys and budgets.</li>
+</ul>
+</div>
+</section>
+
+<section id="limitations" class="wrap">
+  <h2>Limitations</h2>
+  <div class="prose"><ul>
+<li>State (budgets, rate limits, breakers, cache, latency windows) is in memory and per process. A
+multi-instance deployment needs a shared store such as Redis; the telemetry log is the only
+durable record.</li>
+<li>The quality numbers are a simulation over synthetic prompts. Real traffic, real models and a real
+grader will give different absolute numbers and probably a smaller routing win.</li>
+<li>The complexity heuristic is English-centric and misses hard prompts that look simple.</li>
+<li>Streaming is buffered; tool calls, <code>n &gt; 1</code>, images and embeddings endpoints are not supported.</li>
+<li>The semantic cache&#39;s embedder is a hashing bag of words. A real embedding model would cut false
+hits but not remove the risk, which is why exact caching is the default.</li>
+<li>Tenant API keys live in the config file. They are compared by hash and never logged, but a
+production deployment would load them from a secret store.</li>
+<li>The Docker image is provided but CI does not build it.</li>
+</ul>
+</div>
+</section>
+</main>
+<footer><div class="wrap">llm-gateway v0.1.0 &middot; <a href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-">Source on GitHub</a> &middot; <a href="https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/blob/main/CONTRIBUTING.md">Contributing</a> &middot; MIT License, copyright 2026 Sean McRae. Prompts are synthetic, providers are simulated and prices are illustrative; no production traffic is involved. Built by <code>npm run site</code>.</div></footer>
+</body>
+</html>
