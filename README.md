@@ -31,12 +31,12 @@ synthetic prompt set through the real HTTP app with simulated providers; thresho
 separate 300-prompt dev split. From `bench/results.json`, which CI regenerates and diffs on every
 push.
 
-| Measure                              | Default: routed + exact cache | Baseline: always-premium |
-| ------------------------------------ | ----------------------------: | -----------------------: |
-| Quality proxy (simulated, see below) |                         86.0% |                    98.3% |
-| Cost per 1k requests                 |                         $0.34 |                    $1.26 |
-| p50 / p95 latency (service time)     |                434 / 3,351 ms |         1,910 / 4,099 ms |
-| Cache hits, of which wrong           |                        84 / 0 |                        - |
+| Measure                                            | Default: routed + exact cache | Baseline: always-premium |
+| -------------------------------------------------- | ----------------------------: | -----------------------: |
+| Quality proxy ([simulated](#how-evaluation-works)) |                         86.0% |                    98.3% |
+| Cost per 1k requests                               |                         $0.34 |                    $1.26 |
+| p50 / p95 latency (service time)                   |                434 / 3,351 ms |         1,910 / 4,099 ms |
+| Cache hits, of which wrong                         |                        84 / 0 |                        - |
 
 That is 73% cheaper for 12.3 points of quality proxy, and most of those points come from one
 prompt family the router cannot see ([Where it fails](#where-it-fails)). Without the cache the
@@ -226,6 +226,41 @@ What the numbers say:
 - **Latency follows the tier mix.** Routed p50 is lower than always-standard because most traffic
   goes to the fast tier; p95 is set by the premium share.
 
+## Where it fails
+
+Per-category quality from `bench/results.json` (test split, default thresholds) and the cache
+runs. Issues track the fixes.
+
+| Where                               | What happens                                                                                                                                                                                                                                                | Kind of limit                        |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `tricky` prompts (25 of 300)        | Short puzzles with no reasoning cues are scored easy and sent cheap: **8%** vs 52% always-standard and 100% always-premium, about 7.7 of the 12.3-point gap ([#6](https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/issues/6))                | Design: keyword complexity heuristic |
+| `code` (15) and `sql` (12)          | 66.7% and 83.3% routed vs 100% premium at 0.25/0.5. 0.2/0.4 lifts `code` to 100% for $0.05 more per 1k; `sql` needs 0.1/0.3 ($0.12 more). Neither was the dev-split pick                                                                                    | Design: threshold choice             |
+| Semantic cache on templated prompts | 35 of 129 hits answer a different question (2023 vs 2024 report, a different database pair): `sql` drops to 33.3%, `design` to 53.8%, `long-easy` to 62.5%. Off by default ([#7](https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/issues/7)) | Design: bag-of-words embedder, 0.95  |
+| p95 latency                         | Routed p95 is 3,351 ms against premium's 4,099 ms: the tail is set by the 25% premium share, and buffered streaming gives no time-to-first-token gain                                                                                                       | Design: tier mix, buffered SSE       |
+| Dev to test                         | 91.0% on dev, 86.0% on test at the same thresholds, mostly because test has more `tricky` prompts                                                                                                                                                           | Data: synthetic template mix         |
+| Every quality number                | A proxy from hand-set capabilities and template-assigned difficulty, on prompts the heuristic was written alongside. No real model or grader has scored anything ([#8](https://github.com/seanmcrae/llm-gateway-cost-aware-LLM-router-/issues/8))           | Model and data: simulation only      |
+
+**Considered and rejected: a cascade** (call the cheap tier first, escalate on low confidence).
+It can be more accurate, but it pays for two calls and two latencies on every
+escalation and needs a confidence signal providers do not expose consistently. Routing up front
+with a fallback chain keeps one call per request in the common case; the cascade stays on the
+roadmap as a third policy to benchmark ([docs/PRODUCT.md](docs/PRODUCT.md)).
+
+## Limitations
+
+- State (budgets, rate limits, breakers, cache, latency windows) is in memory and per process. A
+  multi-instance deployment needs a shared store such as Redis; the telemetry log is the only
+  durable record.
+- The quality numbers are a simulation over synthetic prompts. Real traffic, real models and a real
+  grader will give different absolute numbers and probably a smaller routing win.
+- The complexity heuristic is English-centric and misses hard prompts that look simple.
+- Streaming is buffered; tool calls, `n > 1`, images and embeddings endpoints are not supported.
+- The semantic cache's embedder is a hashing bag of words. A real embedding model would cut false
+  hits but not remove the risk, which is why exact caching is the default.
+- Tenant API keys live in the config file. They are compared by hash and never logged, but a
+  production deployment would load them from a secret store.
+- The Docker image is provided but CI does not build it.
+
 ## How evaluation works
 
 The gateway only sees prompts. After each response, the harness reads which model answered and
@@ -311,21 +346,6 @@ test/                    vitest suites (no network, no keys)
   improve time to first token.
 - **Everything time-dependent is injected.** That is what lets the benchmark replay about 3,900 requests
   through the real HTTP stack in about two seconds and get identical results on every machine.
-
-## Limitations
-
-- State (budgets, rate limits, breakers, cache, latency windows) is in memory and per process. A
-  multi-instance deployment needs a shared store such as Redis; the telemetry log is the only
-  durable record.
-- The quality numbers are a simulation over synthetic prompts. Real traffic, real models and a real
-  grader will give different absolute numbers and probably a smaller routing win.
-- The complexity heuristic is English-centric and misses hard prompts that look simple.
-- Streaming is buffered; tool calls, `n > 1`, images and embeddings endpoints are not supported.
-- The semantic cache's embedder is a hashing bag of words. A real embedding model would cut false
-  hits but not remove the risk, which is why exact caching is the default.
-- Tenant API keys live in the config file. They are compared by hash and never logged, but a
-  production deployment would load them from a secret store.
-- The Docker image is provided but CI does not build it.
 
 ## Roadmap
 
