@@ -92,6 +92,55 @@ metrics would come from the telemetry log (`costUsd`, `premiumCostUsd` for savin
 Operational metrics on `/metrics`: request count by status and cache result, spend by tenant and
 model, upstream attempts by outcome, latency histogram, breaker state per model.
 
+## Minimum viable quality
+
+Thresholds for shipping a routing policy or config change, read off the replay benchmark's test
+split. They are stated against the fixed-tier baselines in the same run, so they still mean
+something when prices or capabilities change. All quality figures are the simulated proxy.
+
+| Metric                                  | Do not ship                                                                         | Ship                     | Delight                            | Current default (routed 0.25/0.5, exact cache)    |
+| --------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------ | ---------------------------------- | ------------------------------------------------- |
+| Quality proxy                           | Below always-standard (80.0%): a fixed mid tier would beat routing                  | At least 85%             | At least 92%                       | 86.0%: ship                                       |
+| Cost per 1k vs always-premium ($1.26)   | More than 50% of it                                                                 | At most 50%              | At most 30%                        | $0.34, 27%: delight                               |
+| p95 latency                             | Above always-premium (4,099 ms)                                                     | At most always-premium   | At most always-standard (2,042 ms) | 3,351 ms: ship                                    |
+| False cache hits, default-on cache mode | Any                                                                                 | Zero                     | Zero                               | 0 of 84: ship                                     |
+| Worst category                          | Below always-cheap in that category (routing made it worse than the cheapest model) | At or above always-cheap | Every category at 50% or more      | `tricky` 8% vs 4% always-cheap: ship, not delight |
+
+The default clears the ship bar and misses delight on quality and on the worst category, both for
+the same reason (`tricky` prompts, issue #6). In the threshold sweep, 0.1/0.3 reaches delight on
+quality (92.7%) and on the category floor (lowest is `tricky` at 52%) while staying at ship on cost
+(44% of premium). That was observed on the test split, so it cannot be adopted without re-tuning on
+dev first.
+
+## Cost at 1x and 10x usage
+
+Estimates only: measured cost per 1k requests from `bench/results.json` multiplied by a volume.
+The per-token prices in `config/default.json` are illustrative tier shapes (cheap $0.15 / $0.60,
+standard $0.80 / $3.20, premium $3 / $15 per million input / output tokens), not vendor quotes, and
+nothing here comes from a real deployment. **1x is a round 1M requests per month**, chosen for
+illustration; the prompt mix is assumed to match the synthetic test split.
+
+| Policy                         | $ per 1k requests | 1x: 1M requests / month | 10x: 10M requests / month |
+| ------------------------------ | ----------------: | ----------------------: | ------------------------: |
+| always-premium (baseline)      |             1.259 |            about $1,260 |             about $12,600 |
+| always-standard                |             0.290 |              about $290 |              about $2,900 |
+| routed, no cache               |             0.442 |              about $440 |              about $4,420 |
+| routed + exact cache (default) |             0.345 |              about $345 |              about $3,450 |
+
+Against always-premium, the default saves about $910 a month at 1x and about $9,100 at 10x. For
+scale, the demo tenant's $50 monthly budget in `config/default.json` covers about 145k requests at
+the default's cost per 1k.
+
+What does not scale linearly:
+
+- **Cache savings depend on repetition, not volume.** The test split repeats about a third of its
+  questions; real traffic with fewer exact repeats gets closer to the no-cache line.
+- **State is per process.** At 10x a single instance is unlikely to be enough, and budgets, rate
+  limits and breakers then need a shared store (Redis on the roadmap). That infrastructure, and the
+  gateway's own compute, are not in these figures.
+- **Routing quality, not price, is the larger risk at volume.** At 10x the 25 `tricky` prompts in
+  300 become roughly 830k cheap-tier answers a month at 8% proxy quality, if the mix holds.
+
 ## Trade-offs and alternatives considered
 
 - **Heuristic router vs learned router vs LLM-as-router.** A classifier trained on graded traffic
