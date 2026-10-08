@@ -14,6 +14,7 @@ export function loadConfig(path: string = DEFAULT_CONFIG_PATH): GatewayConfig {
   } catch (error) {
     throw new Error(
       `Cannot read config ${path}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
   return parseConfig(raw);
