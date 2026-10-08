@@ -5,8 +5,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-339933.svg)](package.json)
 
-A cost-aware, OpenAI-compatible LLM gateway that routes each request to the cheapest model tier
-likely to answer it well, and keeps serving when a provider fails.
+Does this request need your premium model? `llm-gateway` makes that call per request: it routes
+each prompt to the cheapest model tier likely to answer it well, within the tenant's budget and
+latency SLO, and keeps serving when a provider fails. Its replay benchmark shows what the routing
+policy costs in quality before you turn it on.
 
 **Live docs:** <https://seanmcrae.github.io/llm-gateway-cost-aware-LLM-router-/> has the benchmark
 results, architecture and product brief on one page.
@@ -21,12 +23,25 @@ emits one cost and latency record per request. It ships with OpenAI-compatible a
 adapters and a deterministic mock provider, so the demo, tests, benchmark and CI run without API
 keys.
 
-On the bundled synthetic replay set (300 held-out prompts, simulated providers), the routed policy
-cost **65% less than always-premium** ($0.44 vs $1.26 per 1,000 requests) with a **p50 latency of
-684 ms vs 1,910 ms**, at a quality proxy of **86.0% vs 98.3%**. Adding the exact-match cache cut
-cost by a further 22% with no quality change; the semantic cache cut more but returned a wrong
-answer on 35 of its 129 hits. Most of the routed quality gap comes from one prompt family the
-heuristic cannot see, described under [Results](#results).
+## Numbers
+
+The shipped default (`config/default.json`: routed, thresholds 0.25/0.5, exact cache) against
+sending everything to the premium tier. Replay of the **300-prompt held-out test split** of the
+synthetic prompt set through the real HTTP app with simulated providers; thresholds were tuned on a
+separate 300-prompt dev split. From `bench/results.json`, which CI regenerates and diffs on every
+push.
+
+| Measure                              | Default: routed + exact cache | Baseline: always-premium |
+| ------------------------------------ | ----------------------------: | -----------------------: |
+| Quality proxy (simulated, see below) |                         86.0% |                    98.3% |
+| Cost per 1k requests                 |                         $0.34 |                    $1.26 |
+| p50 / p95 latency (service time)     |                434 / 3,351 ms |         1,910 / 4,099 ms |
+| Cache hits, of which wrong           |                        84 / 0 |                        - |
+
+That is 73% cheaper for 12.3 points of quality proxy, and most of those points come from one
+prompt family the router cannot see ([Where it fails](#where-it-fails)). Without the cache the
+routed policy costs $0.44 per 1k at the same quality. Prices and capabilities are illustrative, so
+read the relative positions, not the absolute numbers.
 
 ![Quality proxy against cost per 1,000 requests for fixed tiers, routed policies and caches](docs/img/frontier.svg)
 
