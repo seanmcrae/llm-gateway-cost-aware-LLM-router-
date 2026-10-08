@@ -277,6 +277,14 @@ real model's quality, and the absolute numbers depend on the illustrative capabi
 in `config/default.json`. The useful outputs are the relative positions of the policies and the
 per-category breakdown (`qualityByCategory` in `bench/results.json`).
 
+## How this was built
+
+Code was written with AI coding agents under my direction. I set the problem, the success metrics
+and the eval gates, and decided what shipped. Every number in this README comes from the committed
+benchmark scripts and is reproduced in CI: `npm run bench` must regenerate `bench/results.json`
+byte for byte, and a test fails if the README's results table or demo output drifts from the
+code.
+
 ## Data
 
 `bench/prompts.synthetic.jsonl` is **synthetic**: 600 prompts (300 dev, 300 test) generated from
